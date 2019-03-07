@@ -8,6 +8,9 @@
 
 	namespace Cz\Git;
 
+    use Symfony\Component\Process\Process;
+    use Symfony\Component\Process\Exception\ProcessFailedException;
+
 	class GitRepository implements IGit
 	{
 		/** @var  string */
@@ -793,25 +796,18 @@
 		 */
 		public static function isRemoteUrlReadable($url, array $refs = NULL)
 		{
-			$env = '';
+            $command = ['git', 'ls-remote', '--heads', '--quiet', '--exit-code', $url];
+            if ($refs) {
+                $command[] = $refs;
+            }
 
-			if (DIRECTORY_SEPARATOR === '\\') { // Windows
-				$env = 'set GIT_TERMINAL_PROMPT=0 &&';
+            $process = new Process($command, null, ['GIT_TERMINAL_PROMPT' => 0]);
+            $process->run();
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
 
-			} else {
-				$env = 'GIT_TERMINAL_PROMPT=0';
-			}
-
-			exec(self::processCommand(array(
-				$env . 'git ls-remote',
-				'--heads',
-				'--quiet',
-				'--exit-code',
-				$url,
-				$refs,
-			)) . ' 2>&1', $output, $returnCode);
-
-			return $returnCode === 0;
+			return $process->getExitCode() === 0;
 		}
 
 
